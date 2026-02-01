@@ -1,4 +1,3 @@
-// 频率 <-> 音名/cents 工具
 const A4 = 440;
 const NOTE_NAMES = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
 

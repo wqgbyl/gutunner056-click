@@ -1,13 +1,13 @@
-// AudioWorkletProcessor: 把麦克风输入以固定 block 输出到主线程（Float32Array）
-// 说明：这里不做 FFT/分析，尽量轻量。
-// 主线程会把这些样本缓冲成 (frameSize=1024, hop≈10ms) 用于 pitch/tempo。
+// AudioWorkletProcessor: 抓取麦克风输入 PCM（Float32）并批量发送到主线程
+// 主线程做：环形/队列缓存 -> 按 hopSize 精确推进分析（pitch/tempo）
 
 class PCMGrabberProcessor extends AudioWorkletProcessor {
   constructor() {
     super();
     this._buf = [];
     this._bufLen = 0;
-    this._chunkSize = 2048; // 每次凑够 2048 样本就发一次，减少 message 频率
+    this._chunkSize = 2048; // 聚合后再发，降低 message 频率
+    this._totalSamples = 0;
   }
 
   process(inputs) {
@@ -16,11 +16,12 @@ class PCMGrabberProcessor extends AudioWorkletProcessor {
     const ch0 = input[0];
     if (!ch0) return true;
 
-    // 拷贝当前 render quantum (通常 128 samples)
     const copy = new Float32Array(ch0.length);
     copy.set(ch0);
+
     this._buf.push(copy);
     this._bufLen += copy.length;
+    this._totalSamples += copy.length;
 
     if (this._bufLen >= this._chunkSize) {
       const out = new Float32Array(this._bufLen);
@@ -29,10 +30,12 @@ class PCMGrabberProcessor extends AudioWorkletProcessor {
         out.set(a, off);
         off += a.length;
       }
-      this.port.postMessage({ type: "pcm", pcm: out }, [out.buffer]);
+      // 同时发累计样本数，便于主线程调试/对齐
+      this.port.postMessage({ type: "pcm", pcm: out, totalSamples: this._totalSamples }, [out.buffer]);
       this._buf = [];
       this._bufLen = 0;
     }
+
     return true;
   }
 }

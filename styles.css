@@ -51,7 +51,6 @@ button[disabled]{opacity:.4;cursor:not-allowed}
 .value{font-size:18px;font-weight:700}
 .hint{color:var(--muted);font-size:13px;line-height:1.55}
 .small{color:var(--muted);font-size:12px}
-.audio{width:100%;margin-top:10px}
 .slider{display:flex;gap:10px;align-items:center;color:var(--muted)}
 .slider input{flex:1}
 .checkbox{display:flex;gap:10px;align-items:center;color:var(--muted)}

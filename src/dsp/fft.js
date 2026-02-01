@@ -1,5 +1,5 @@
 // 简单 FFT（Cooley–Tukey radix-2, in-place）
-// 够用：frameSize=1024 用于谱通量。
+// 用途：frameSize=1024 的幅度谱（谱通量）
 // 输入：real Float32Array, imag Float32Array(零初始化)
 // 输出：频域复数（未归一化）
 
@@ -22,7 +22,6 @@ export function fftRadix2(real, imag) {
     j += m;
   }
 
-  // Danielson–Lanczos
   for (let len = 2; len <= n; len <<= 1) {
     const ang = -2 * Math.PI / len;
     const wlenR = Math.cos(ang);
@@ -53,13 +52,9 @@ export function magnitudeSpectrumFromTimeDomain(frame, windowFunc = hannWindow) 
   const real = new Float32Array(n);
   const imag = new Float32Array(n);
   for (let i = 0; i < n; i++) real[i] = frame[i] * windowFunc(i, n);
-  // imag already 0
   fftRadix2(real, imag);
   const mag = new Float32Array(n/2);
-  for (let i = 0; i < n/2; i++) {
-    const re = real[i], im = imag[i];
-    mag[i] = Math.hypot(re, im);
-  }
+  for (let i = 0; i < n/2; i++) mag[i] = Math.hypot(real[i], imag[i]);
   return mag;
 }
 

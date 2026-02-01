@@ -1,12 +1,12 @@
-# 调音器 + 自动 BPM(♩) + 回放节拍器（AudioWorklet 试跑版）
+# 调音器 + 自动 BPM(♩) + 自动对齐节拍器（AudioWorklet 同步版）
 
-## 目标
-- 麦克风录音（人声/双簧管）
-- 实时音高估计（PitchTracker）
-- 停止录音后自动识别四分音符速度：`♩=BPM`
-- 回放时叠加可听节拍器（可开关/音量）
-
-> 这是一个“完整可跑”的新仓库骨架，你之后把你已有的调音器核心算法（换音确认、合并、评分等）直接替换 `src/dsp/pitchTracker.js` 即可。
+## 你现在得到的是什么
+- 麦克风录音（人声 / 双簧管）
+- 实时音高估计（`src/dsp/pitchTracker.js`，可替换为你已有成熟版本）
+- 停止录音后分析：
+  - 四分音符速度：`♩ = BPM`
+  - 拍点相位偏移：`beatOffsetSec`（用于把节拍器“贴”到音乐重音/起音附近）
+- 回放：音乐与节拍器都用 WebAudio，在同一时间轴（手机上不会像 `<audio>` 那样漂）
 
 ## 运行
 1. 安装 Node.js
@@ -14,18 +14,20 @@
    ```bash
    npx http-server -p 5173
    ```
-3. 打开浏览器：
+3. 打开：
    - http://localhost:5173
 
-## 说明与已知限制（当前版本）
-- Tempo 识别依赖录音长度，建议 ≥ 8 秒更稳定
-- 主线程分析 tick 使用 RAF 近似，精度可用但不是最严谨
-  - 下一步优化：用 AudioWorklet 发送“累计样本计数”或在主线程以 `setInterval(10ms)` 从 ring buffer 按 hopSize 精确推进
-- Chrome/Edge 体验最好；Safari 可能需要额外处理 AudioWorklet / MediaRecorder
+> GitHub Pages 部署：Settings → Pages → Deploy from a branch → main → /(root)
 
-## 文件结构
-- `src/audio/audio-worklet-processor.js`：AudioWorklet，抓 PCM
-- `src/dsp/pitchTracker.js`：音高估计（可替换为你的成熟实现）
-- `src/dsp/tempoTracker.js`：谱通量+能量差分 → ACF → ♩BPM
-- `src/audio/metronome.js`：节拍器 click 生成与调度
-- `src/dsp/fft.js`：简单 radix-2 FFT（用于谱通量）
+## 核心实现点
+- AudioWorklet 抓 PCM：`src/audio/audio-worklet-processor.js`
+- 主线程按 hopSize（约10ms）精确推进分析：`src/main.js`
+- Tempo：
+  - novelty = 0.7*谱通量 + 0.3*能量差分
+  - ACF 找 BPM
+  - 固定 BPM 下扫描 offset 得 `beatOffsetSec`
+  - 实现：`src/dsp/tempoTracker.js`
+- 节拍器调度（lookahead scheduling）：`src/audio/metronome.js`
+
+## 下一步你要融合旧调音器
+把你旧项目的核心逻辑替换 `src/dsp/pitchTracker.js` 即可，保持接口 `pushFrame(frame)`。

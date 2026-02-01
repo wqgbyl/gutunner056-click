@@ -3,13 +3,13 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>调音器 + 自动BPM(♩) + 回放节拍器（AudioWorklet 试跑版）</title>
+  <title>调音器 + 自动BPM(♩) + 自动对齐节拍器（AudioWorklet）</title>
   <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
   <header>
-    <h1>调音器 + 自动 BPM(♩) + 回放节拍器</h1>
-    <p class="sub">麦克风录制（人声/双簧管）→ 音高估计 → 自动识别四分音符速度 ♩=BPM → 回放叠加可听节拍器</p>
+    <h1>调音器 + 自动 BPM(♩) + 自动对齐节拍器</h1>
+    <p class="sub">录音（人声/双簧管）→ 实时音高 → 录后分析：♩=BPM + 拍点相位 → WebAudio 回放叠加节拍器（同步）</p>
   </header>
 
   <main>
@@ -46,8 +46,9 @@
 
       <div class="hint">
         <ul>
-          <li>建议录音 ≥ 8 秒，BPM 更稳定。</li>
-          <li>这是“能跑的骨架”，你之后把既有的分段/换音确认逻辑接入 <code>PitchTracker</code> 即可。</li>
+          <li>建议录音 ≥ 8 秒，BPM/对齐更稳定。</li>
+          <li>本版回放与节拍器都在 <b>同一个 WebAudio 时间轴</b>，避免手机/浏览器播放器不同步。</li>
+          <li>你之后把既有的分段/换音确认逻辑接入 <code>src/dsp/pitchTracker.js</code> 即可。</li>
         </ul>
       </div>
     </section>
@@ -55,7 +56,7 @@
     <section class="card">
       <h2>回放 + 节拍器</h2>
       <div class="row">
-        <button id="btnPlay" disabled>回放</button>
+        <button id="btnPlay" disabled>回放（同步节拍器）</button>
         <button id="btnStopPlay" disabled>停止回放</button>
       </div>
 
@@ -74,8 +75,12 @@
         </label>
       </div>
 
-      <audio id="audioEl" controls class="audio" preload="metadata"></audio>
-      <p class="small">提示：本页必须通过本地服务器访问（不能直接双击打开），因为 AudioWorklet 需要安全上下文/模块加载。</p>
+      <div class="row">
+        <div class="small">录音时长：<span id="dur">—</span></div>
+        <div class="small">拍点对齐偏移：<span id="beatOffset">—</span></div>
+      </div>
+
+      <p class="small">提示：必须通过本地服务器或 GitHub Pages（HTTPS）访问；AudioWorklet 需要安全上下文/模块加载。</p>
     </section>
 
     <section class="card">
@@ -89,7 +94,7 @@
   </main>
 
   <footer>
-    <span class="small">AudioWorklet 试跑版 · 适配 Chrome/Edge（Safari 可能需要额外处理）</span>
+    <span class="small">AudioWorklet 同步版 · Chrome/Edge 优先</span>
   </footer>
 
   <script type="module" src="./src/main.js"></script>
