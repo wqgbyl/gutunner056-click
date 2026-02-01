@@ -1,8 +1,3 @@
-// TempoTracker：谱通量 + 能量差分 -> novelty -> ACF 找 BPM
-// 并追加：在已知 BPM 下估计拍点相位（beatOffsetSec），用于回放节拍器对齐
-//
-// 输出：{ bpm, confidence, beatOffsetSec }
-
 import { magnitudeSpectrumFromTimeDomain } from "./fft.js";
 
 export class TempoTracker {
@@ -18,14 +13,12 @@ export class TempoTracker {
   }
 
   pushFrame(frame) {
-    // RMS diff
     let sum = 0;
     for (let i = 0; i < frame.length; i++) sum += frame[i] * frame[i];
     const rms = Math.sqrt(sum / frame.length);
     const rmsDiff = Math.max(0, rms - this._prevRms);
     this._prevRms = rms;
 
-    // spectral flux
     const mag = magnitudeSpectrumFromTimeDomain(frame);
     let flux = 0;
     if (!this._prevMag) {
@@ -38,15 +31,14 @@ export class TempoTracker {
         this._prevMag[i] = mag[i];
       }
     }
-
     this._pairs.push({ flux, rmsDiff });
   }
 
+  // 返回：bpm/confidence/beatOffsetSec（beatOffsetSec 是“第一拍”相对录音起点的偏移）
   finalize({ minBPM = 40, maxBPM = 200 } = {}) {
     const dur = this._pairs.length * this.hopSeconds;
-    if (dur < 3) return { bpm: null, confidence: 0, beatOffsetSec: 0 };
+    if (dur < 3) return { bpm: null, confidence: 0, beatOffsetSec: 0, sm: null };
 
-    // normalize pairs
     let maxFlux = 1e-12, maxRms = 1e-12;
     for (const x of this._pairs) {
       if (x.flux > maxFlux) maxFlux = x.flux;
@@ -60,7 +52,6 @@ export class TempoTracker {
       v[i] = 0.7 * fluxN + 0.3 * rmsN;
     }
 
-    // smooth
     const sm = new Float32Array(v.length);
     for (let i = 0; i < v.length; i++) {
       let acc = 0, cnt = 0;
@@ -71,7 +62,6 @@ export class TempoTracker {
       sm[i] = acc / cnt;
     }
 
-    // ACF
     const hop = this.hopSeconds;
     const minLag = Math.floor((60 / maxBPM) / hop);
     const maxLag = Math.floor((60 / minBPM) / hop);
@@ -83,14 +73,13 @@ export class TempoTracker {
       acf[lag] = s;
     }
 
-    // peaks
     const peaks = [];
     for (let lag = minLag + 1; lag < maxLag - 1; lag++) {
       if (acf[lag] > acf[lag-1] && acf[lag] > acf[lag+1]) peaks.push({ lag, val: acf[lag] });
     }
     peaks.sort((a, b) => b.val - a.val);
     const top = peaks.slice(0, 8);
-    if (!top.length) return { bpm: null, confidence: 0, beatOffsetSec: 0 };
+    if (!top.length) return { bpm: null, confidence: 0, beatOffsetSec: 0, sm };
 
     const fold = (bpm) => {
       while (bpm > maxBPM) bpm *= 0.5;
@@ -104,7 +93,6 @@ export class TempoTracker {
       return { bpm, strength: p.val };
     });
 
-    // merge close BPMs
     cands.sort((a, b) => a.bpm - b.bpm);
     const merged = [];
     const tol = 2.5;
@@ -122,10 +110,8 @@ export class TempoTracker {
     const conf = best.strength / (merged.reduce((s, x) => s + x.strength, 1e-9));
     const bpmInt = Math.round(best.bpm);
 
-    // beat offset estimation (phase)
     const beatOffsetSec = estimateBeatOffset(sm, hop, bpmInt);
-
-    return { bpm: bpmInt, confidence: conf, beatOffsetSec };
+    return { bpm: bpmInt, confidence: conf, beatOffsetSec, sm };
   }
 
   reset() {
@@ -135,35 +121,24 @@ export class TempoTracker {
   }
 }
 
-// 在已知 bpm 下，扫描 [0, interval) 的 offset，使得 “offset + k*interval” 处的 novelty 总和最大
 function estimateBeatOffset(sm, hopSec, bpm) {
   if (!bpm || bpm <= 0) return 0;
   const intervalSec = 60 / bpm;
   const intervalFrames = intervalSec / hopSec;
   if (intervalFrames < 2) return 0;
 
-  const samplesPerPeriod = Math.max(32, Math.min(128, Math.floor(intervalFrames * 2))); // 扫描密度
-  let bestO = 0;
-  let bestScore = -1;
-
-  // 为避免开头静音影响，从 0.5s 之后开始累计
+  const scanN = Math.max(32, Math.min(128, Math.floor(intervalFrames * 2)));
+  let bestO = 0, bestScore = -1;
   const startFrame = Math.floor(0.5 / hopSec);
 
-  for (let s = 0; s < samplesPerPeriod; s++) {
-    const o = (s / samplesPerPeriod) * intervalFrames;
+  for (let s = 0; s < scanN; s++) {
+    const o = (s / scanN) * intervalFrames;
     let score = 0;
-    // 累加多个周期
     for (let t = startFrame + o; t < sm.length; t += intervalFrames) {
       const idx = Math.round(t);
       if (idx >= 0 && idx < sm.length) score += sm[idx];
     }
-    if (score > bestScore) {
-      bestScore = score;
-      bestO = o;
-    }
+    if (score > bestScore) { bestScore = score; bestO = o; }
   }
-
-  // 归一到 [0, interval)
-  const offsetSec = (bestO * hopSec) % intervalSec;
-  return offsetSec;
+  return (bestO * hopSec) % intervalSec;
 }

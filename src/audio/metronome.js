@@ -13,25 +13,31 @@ export function createClickBuffer(audioCtx, { freq = 1500, durationMs = 15 } = {
 
 export function scheduleMetronome(audioCtx, {
   bpm,
+  meter = 4,
   startTime,
   durationSec,
-  clickBuffer,
+  clickBufferStrong,
+  clickBufferWeak,
   clickGainNode,
   lookaheadSec = 0.2,
   scheduleIntervalMs = 25,
 } = {}) {
   const interval = 60 / bpm;
   let nextClickTime = startTime;
+  let beatIndex = 0; // 0..meter-1
 
   const timer = setInterval(() => {
     const now = audioCtx.currentTime;
     const horizon = now + lookaheadSec;
     while (nextClickTime < horizon && nextClickTime < startTime + durationSec) {
       const src = audioCtx.createBufferSource();
-      src.buffer = clickBuffer;
+      const isStrong = (beatIndex % meter) === 0;
+      src.buffer = isStrong ? clickBufferStrong : clickBufferWeak;
       src.connect(clickGainNode);
       src.start(nextClickTime);
+
       nextClickTime += interval;
+      beatIndex++;
     }
   }, scheduleIntervalMs);
 

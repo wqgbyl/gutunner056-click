@@ -1,12 +1,11 @@
 // AudioWorkletProcessor: 抓取麦克风输入 PCM（Float32）并批量发送到主线程
-// 主线程做：环形/队列缓存 -> 按 hopSize 精确推进分析（pitch/tempo）
 
 class PCMGrabberProcessor extends AudioWorkletProcessor {
   constructor() {
     super();
     this._buf = [];
     this._bufLen = 0;
-    this._chunkSize = 2048; // 聚合后再发，降低 message 频率
+    this._chunkSize = 2048;
     this._totalSamples = 0;
   }
 
@@ -30,12 +29,10 @@ class PCMGrabberProcessor extends AudioWorkletProcessor {
         out.set(a, off);
         off += a.length;
       }
-      // 同时发累计样本数，便于主线程调试/对齐
       this.port.postMessage({ type: "pcm", pcm: out, totalSamples: this._totalSamples }, [out.buffer]);
       this._buf = [];
       this._bufLen = 0;
     }
-
     return true;
   }
 }

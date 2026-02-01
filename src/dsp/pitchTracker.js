@@ -1,8 +1,3 @@
-// 轻量 pitch tracker（YIN-lite）
-// 目标：可跑、可替换。
-// 你把你原来的“换音确认+合并+MIN_SCORE_MS”等成熟逻辑替换这里即可：
-// - 保持外部接口：pushFrame(frame)-> {freqHz, noteName, cents}
-
 import { freqToNote } from "./pitchUtils.js";
 
 export class PitchTracker {
@@ -25,11 +20,11 @@ export class PitchTracker {
 }
 
 function estimateF0_YINlite(frame, sr, minFreq, maxFreq) {
-  // energy gate
+  // 更低的能量门限：手机端更容易有偏小振幅
   let sum = 0;
   for (let i = 0; i < frame.length; i++) sum += frame[i] * frame[i];
   const rms = Math.sqrt(sum / frame.length);
-  if (rms < 0.01) return null;
+  if (rms < 0.003) return null;
 
   const n = frame.length;
   const minLag = Math.floor(sr / maxFreq);

@@ -1,33 +1,23 @@
-# 调音器 + 自动 BPM(♩) + 自动对齐节拍器（AudioWorklet 同步版）
+# 调音器 + 自动 BPM(♩) + 拍手定拍号/起拍 + 同步节拍器（AudioWorklet）V3
 
-## 你现在得到的是什么
-- 麦克风录音（人声 / 双簧管）
-- 实时音高估计（`src/dsp/pitchTracker.js`，可替换为你已有成熟版本）
-- 停止录音后分析：
-  - 四分音符速度：`♩ = BPM`
-  - 拍点相位偏移：`beatOffsetSec`（用于把节拍器“贴”到音乐重音/起音附近）
-- 回放：音乐与节拍器都用 WebAudio，在同一时间轴（手机上不会像 `<audio>` 那样漂）
+## 新增内容（你刚提的需求）
+- ✅ 实时音准恢复（手机端能量门限下调）
+- ✅ 报表恢复：平均|cents|、10/25 cents 内比例、Top5 音名分布
+- ✅ “拍手定拍号/起拍”：
+  - 开始录音后先等间隔拍手
+  - 3下≈3/4，4下≈4/4
+  - 若要更稳/避免起拍困扰：7下(3/4) 或 5下(4/4)（相当于多拍到下一次第一拍）
+  - 系统检测稳定拍手后，优先用拍手锁定 BPM + 拍号 + 第一拍偏移
+  - 若未检测到拍手或拍手不稳定，回退到自动节奏分析（谱通量+能量差分+ACF+相位估计）
 
 ## 运行
-1. 安装 Node.js
-2. 在项目目录运行：
-   ```bash
-   npx http-server -p 5173
-   ```
-3. 打开：
-   - http://localhost:5173
+```bash
+npx http-server -p 5173
+```
+打开 http://localhost:5173
 
-> GitHub Pages 部署：Settings → Pages → Deploy from a branch → main → /(root)
+## GitHub Pages
+Settings → Pages → Deploy from a branch → main → /(root)
 
-## 核心实现点
-- AudioWorklet 抓 PCM：`src/audio/audio-worklet-processor.js`
-- 主线程按 hopSize（约10ms）精确推进分析：`src/main.js`
-- Tempo：
-  - novelty = 0.7*谱通量 + 0.3*能量差分
-  - ACF 找 BPM
-  - 固定 BPM 下扫描 offset 得 `beatOffsetSec`
-  - 实现：`src/dsp/tempoTracker.js`
-- 节拍器调度（lookahead scheduling）：`src/audio/metronome.js`
-
-## 下一步你要融合旧调音器
-把你旧项目的核心逻辑替换 `src/dsp/pitchTracker.js` 即可，保持接口 `pushFrame(frame)`。
+## 你要融合旧调音器
+把你原项目成熟版本替换 `src/dsp/pitchTracker.js` 的实现即可，保持外部接口 `pushFrame(frame)`。

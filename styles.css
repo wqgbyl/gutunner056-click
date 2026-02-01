@@ -55,6 +55,10 @@ button[disabled]{opacity:.4;cursor:not-allowed}
 .slider input{flex:1}
 .checkbox{display:flex;gap:10px;align-items:center;color:var(--muted)}
 code{background:#0f1621;border:1px solid var(--border);padding:2px 6px;border-radius:8px}
+.report{display:grid;grid-template-columns:1fr;gap:8px}
+.rrow{display:flex;justify-content:space-between;gap:12px;border:1px solid var(--border);border-radius:12px;padding:10px}
+.rk{color:var(--muted);font-size:13px}
+.rv{font-weight:700}
 @media (max-width: 900px){
   .grid{grid-template-columns: repeat(2, minmax(120px, 1fr));}
 }

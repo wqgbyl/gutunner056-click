@@ -1,13 +1,7 @@
-// 简单 FFT（Cooley–Tukey radix-2, in-place）
-// 用途：frameSize=1024 的幅度谱（谱通量）
-// 输入：real Float32Array, imag Float32Array(零初始化)
-// 输出：频域复数（未归一化）
-
 export function fftRadix2(real, imag) {
   const n = real.length;
   if ((n & (n - 1)) !== 0) throw new Error("FFT length must be power of 2");
 
-  // bit-reversal
   let j = 0;
   for (let i = 0; i < n; i++) {
     if (i < j) {
